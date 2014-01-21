@@ -1,0 +1,43 @@
+require 'rubygems'
+require 'mechanize'
+require 'json'
+
+def create_folder(link)
+  category = link.scan(/department\/(.*)\//)
+  ls = `ls | grep #{category}`
+  if !ls  
+    system 'mkdir #{category}'
+  end
+  sub_category = link.scan(/department\/#{category}\/(.*)\//)
+  ls = `ls | grep #{sub_category}`
+  if !ls  
+    system 'mkdir #{category}'
+  end
+  return category, sub_category
+end
+
+a = Mechanize.new { |agent|
+  agent.user_agent_alias = 'Mac Safari'
+}
+
+i=0
+a.get('http://www.ikea.com/ru/ru/catalog/allproducts/') do |page_home|
+  page_home.body.scan(/<a id="txt\d+" href="(.*)"/) do |category_link| 
+    i+=1
+    break if i>1
+    category, sub_category = create_folder(category_link[0])
+    a.get('http://www.ikea.com'+category_link[0]) do |page_category| 
+      #page_category.body.scan(/<a href="\/ru\/ru\/catalog\/products\/(\d+)\/"/).uniq do |product| 
+      #  a.get('http://www.ikea.com'+category[0]) do |page_category|         
+      #  end    
+      #end 
+    end
+  end 
+end
+
+#File.open(cat[0],"w") do |f|
+#  f.write(cat[1].to_json)
+#end
+  
+#File.open("categories.txt", 'w') { |file| file.write(pageHome.body.scan(/<a id="txt\d+" href="(.*)"/)) }
+   
