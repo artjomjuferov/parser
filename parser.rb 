@@ -16,6 +16,25 @@ def create_folder(link)
   return category, sub_category
 end
 
+def create_product_description(body)
+  obj = Hash.new
+  obj['name'] = page_category.body.scan(/some regex/)
+  obj['type'] = page_category.body.scan(/some regex/)
+  obj['price1'] = page_category.body.scan(/some regex/)
+  obj['itemNumber'] = page_category.body.scan(/some regex/)
+  obj['salesArg'] = page_category.body.scan(/some regex/)
+  obj['displayMeasurements'] = page_category.body.scan(/some regex/)
+  obj['ikeaStoreNumber1'] = page_category.body.scan(/some regex/)
+  obj['metric'] = page_category.body.scan(/some regex/)
+  obj['imperial'] = page_category.body.scan(/some regex/)
+  obj['custBenefit'] = page_category.body.scan(/some regex/)
+  obj['packageHeader'] = page_category.body.scan(/some regex/)
+  obj['goodtoknowheader1'] = page_category.body.scan(/some regex/)
+  obj['measurmentHead'] = page_category.body.scan(/some regex/)
+  obj['imgs'] = page_category.body.scan(/some regex/)
+  retrun obj.to_json
+end
+
 a = Mechanize.new { |agent|
   agent.user_agent_alias = 'Mac Safari'
 }
@@ -25,11 +44,15 @@ a.get('http://www.ikea.com/ru/ru/catalog/allproducts/') do |page_home|
   page_home.body.scan(/<a id="txt\d+" href="(.*)"/) do |category_link| 
     i+=1
     break if i>1
-    category, sub_category = create_folder(category_link.pop.pop)
-    a.get('http://www.ikea.com'+category_link.pop.pop) do |page_category| 
+    category_link = category_link.pop
+    category, sub_category = create_folder(category_link)
+    a.get('http://www.ikea.com'+category_link) do |page_category| 
       page_category.body.scan(/<a href="\/ru\/ru\/catalog\/products\/(\d+)\/"/).uniq do |product| 
-        a.get('http://www.ikea.com/ru/ru/catalog/products/'+product.pop.pop) do |page_product|         
-          
+        product = product.pop
+        a.get('http://www.ikea.com/ru/ru/catalog/products/'+product) do |page_product|         
+          puts page_product.body
+          #product_json = create_product_description(page_product.body)        
+          #File.open(product, 'w') { |f| f.write(product_json) }
         end    
       end 
     end
@@ -39,6 +62,3 @@ end
 #File.open(cat[0],"w") do |f|
 #  f.write(cat[1].to_json)
 #end
-  
-#File.open("categories.txt", 'w') { |file| file.write(pageHome.body.scan(/<a id="txt\d+" href="(.*)"/)) }
-   
