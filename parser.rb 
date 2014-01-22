@@ -9,7 +9,7 @@ def create_folder(link)
     system `mkdir #{category}`
   end
   sub_category = link.scan(/departments\/#{category}\/(.*)\//).pop.pop
-  ls = `ls | grep #{sub_category}`
+  ls = `cd #{category} && ls | grep #{sub_category}`
   if ls == ''  
     system `mkdir #{category}/#{sub_category}`
   end
@@ -18,21 +18,21 @@ end
 
 def create_product_description(body)
   obj = Hash.new
-  obj['name'] = page_category.body.scan(/some regex/)
-  obj['type'] = page_category.body.scan(/some regex/)
-  obj['price1'] = page_category.body.scan(/some regex/)
-  obj['itemNumber'] = page_category.body.scan(/some regex/)
-  obj['salesArg'] = page_category.body.scan(/some regex/)
-  obj['displayMeasurements'] = page_category.body.scan(/some regex/)
-  obj['ikeaStoreNumber1'] = page_category.body.scan(/some regex/)
-  obj['metric'] = page_category.body.scan(/some regex/)
-  obj['imperial'] = page_category.body.scan(/some regex/)
-  obj['custBenefit'] = page_category.body.scan(/some regex/)
-  obj['packageHeader'] = page_category.body.scan(/some regex/)
-  obj['goodtoknowheader1'] = page_category.body.scan(/some regex/)
-  obj['measurmentHead'] = page_category.body.scan(/some regex/)
-  obj['imgs'] = page_category.body.scan(/some regex/)
-  retrun obj.to_json
+  obj['name'] = body.scan(/<div id="name".+?>(.+?)<\/div>/m).pop.pop.gsub(/\s+/, "")
+  #obj['type'] = page_category.body.scan(/some regex/)
+  #obj['price1'] = page_category.body.scan(/some regex/)
+  #obj['itemNumber'] = page_category.body.scan(/some regex/)
+  #obj['salesArg'] = page_category.body.scan(/some regex/)
+  #obj['displayMeasurements'] = page_category.body.scan(/some regex/)
+  #obj['ikeaStoreNumber1'] = page_category.body.scan(/some regex/)
+  #obj['metric'] = page_category.body.scan(/some regex/)
+  #obj['imperial'] = page_category.body.scan(/some regex/)
+  #obj['custBenefit'] = page_category.body.scan(/some regex/)
+  #obj['packageHeader'] = page_category.body.scan(/some regex/)
+  #obj['goodtoknowheader1'] = page_category.body.scan(/some regex/)
+  #obj['measurmentHead'] = page_category.body.scan(/some regex/)
+  #obj['imgs'] = page_category.body.scan(/some regex/)
+  return obj.to_json
 end
 
 a = Mechanize.new { |agent|
@@ -49,16 +49,13 @@ a.get('http://www.ikea.com/ru/ru/catalog/allproducts/') do |page_home|
     a.get('http://www.ikea.com'+category_link) do |page_category| 
       page_category.body.scan(/<a href="\/ru\/ru\/catalog\/products\/(\d+)\/"/).uniq do |product| 
         product = product.pop
-        a.get('http://www.ikea.com/ru/ru/catalog/products/'+product) do |page_product|         
-          puts page_product.body
-          #product_json = create_product_description(page_product.body)        
-          #File.open(product, 'w') { |f| f.write(product_json) }
+        a.get('http://www.ikea.com/ru/ru/catalog/products/'+product) do |page_product|  
+          i+=1
+          break if i>3       
+          product_json = create_product_description(page_product.body)        
+          File.open("#{category}/#{sub_category}/#{product}", 'w') { |f| f.write(product_json) }
         end    
       end 
     end
   end 
 end
-
-#File.open(cat[0],"w") do |f|
-#  f.write(cat[1].to_json)
-#end
