@@ -8,9 +8,9 @@ IDS_SIMPLE = ['name', 'type','environment','designer','itemNumber', 'custMateria
 
 def create_product_description(body)
   obj = Hash.new
-  #IDS_SIMPLE.each do |id_name|
-  #  obj = simple(id_name,body, obj)     
-  #end 
+  IDS_SIMPLE.each do |id_name|
+    obj = simple(id_name,body, obj)     
+  end 
   obj = salesArg(body, obj)
 
   File.open("test.json", 'w') { |f| f.write(obj.to_json) }
