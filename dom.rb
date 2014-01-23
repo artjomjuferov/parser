@@ -3,16 +3,17 @@ require 'mechanize'
 require 'json'
 #encoding: ASCII-8BIT
 
-IDS_SIMPLE = ['name', 'type','environment','designer','itemNumber', 'custMaterials', 'careInst','metric']
+IDS_SIMPLE = ['name', 'type','environment','designer','itemNumber', 'custMaterials', 'careInst', 'metric', 'goodToKnow']
 
 
 def create_product_description(body)
   obj = Hash.new
-  IDS_SIMPLE.each do |id_name|
-    obj = simple(id_name,body, obj)     
-  end 
-  obj = salesArg(body, obj)
-
+  #IDS_SIMPLE.each do |id_name|
+  #  obj = simple(id_name,body, obj)     
+  #end 
+  #obj = salesArg(body, obj)
+  #obj = pdf(body, obj)
+  #obj = images(body, obj)
   File.open("test.json", 'w') { |f| f.write(obj.to_json) }
 end
 
@@ -20,9 +21,8 @@ end
 # top
 def simple(id, body, obj)
   result = body.scan(/<div id\s*="#{id}".*?>(.*?)<\/div>/m)
-  result = check_on_nil(result)
-  if result != false
-    obj[id] = result.to_s.gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+  if result[0][0] != nil
+    obj[id] = result[0][0].to_s.gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
   else 
     obj[id] = ''
   end
@@ -31,50 +31,41 @@ end
 
 # where  подробнее
 def salesArg(body, obj)
-  result = body.scan(/<div id="salesArg".*?>(.*?)<a/m) 
-  result = check_on_nil(result)
-  if result != false
-    obj["salesArg"] = result.to_s.gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+  result = body.scan(/<div id="salesArg".*?>(.*?)<a/m)
+  if result[0][0] != nil
+    obj["salesArg"] = result[0][0].to_s.gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
   else 
     obj["salesArg"] = ''
   end
   return obj
 end
 
-=begin
-<div class="colAttachment">
-                    <a href="/ru/ru/manuals/vissa-somnat-matras-dla-detskoj-krovatki__AA-812291-1_pub.pdf" target="_blank">ВИССА СОМНАТ Матрас для детской кроватки</a>
-                    
-                      <span class="fileType">
-=end
-
-
-def check_on_nil(obj_tmp)
-  if obj_tmp != nil  
-    obj_tmp = obj_tmp.pop 
-    if obj_tmp != nil  
-      obj_tmp = obj_tmp.pop 
-      if obj_tmp != nil
-        return obj_tmp
-      else
-        return false
-      end
-    else    
-      return false
+def pdf(body, obj)
+  result = body.scan(/<div class="colAttachment">\s+<a href="(.*?)" target="_blank"/m)
+  arr = []
+  result.each do |el|
+    if el[0] != nil
+      arr.push(el[0].to_s.force_encoding('UTF-8'))
     end
-  else 
-    return false
   end
+  if arr != nil
+    obj["pdf"] = arr
+  else 
+    obj["pdf"] = ''
+  end
+  return obj
 end
 
-# drop_down_sizes
-def pdf(body, obj)
-  result = body.scan(/<div id="salesArg".*?>(.*?)<a/m)
-  result = check_on_nil(result)
-  if result != false
-    obj["salesArg"] = result.to_s.gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+def images(body, obj)
+  result = body.scan(/"images":{"large":\[(.*?)\]/m)
+  arr = [] 
+  if result[0][0] != nil
+    result[0][0].split(/","/).each do |img|
+      arr.push(img.to_s.gsub(/\t|\n|\r|"|\\/, "").force_encoding('UTF-8'))
+    end
+    obj["images"] = arr
   else 
-    obj["salesArg"] = ''
+    obj["images"] = ''
   end
   return obj
 end
@@ -89,15 +80,15 @@ def displayMeasurements
    
 end
 
+def create_array_of_imgs(string)
 
-#--------------
-# 
+end
 
 a = Mechanize.new { |agent|
   agent.user_agent_alias = 'Mac Safari'
 }
 
 
-a.get('http://www.ikea.com/ru/ru/catalog/products/00150184/') do |page_product|          
+a.get('http://www.ikea.com/ru/ru/catalog/products/80178424/') do |page_product|          
   create_product_description(page_product.body)
 end
