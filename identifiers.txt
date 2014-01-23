@@ -1,0 +1,11 @@
+Название товара - div id="name"
+Краткое описание товара - div id="type"
+Цена - span id="price1"
+Размеры товара - div id="metric"
+Главные черты  - div id="custBenefit"(внутри 2 дива)
+Дизайнер - div id="designer"
+Размер и вес упаковки - div id="packageInfo"(внутри 2 дива)
+Экологическая информация - div id="environment"
+Инструкция по уходу - div id="careInst"
+Описание и размеры товара - div id="custMaterials"
+Полезная информация - div id="goodToKnow"
