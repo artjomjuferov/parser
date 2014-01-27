@@ -1,6 +1,185 @@
 require 'rubygems'
 require 'mechanize'
 require 'json'
+#encoding: ASCII-8BIT
+
+IDS_SIMPLE = ['name', 'type', 'environment', 'designer', 'itemNumber', 'custMaterials', 'careInst', 'metric', 'goodToKnow']
+FUNCTIONS = ['simple', 'salesArg', 'pdfs', 'images', 'price1', 'storeformatpieces', 'related', 'numberOfPackages', 'packageInfo']
+
+def create_product_description(body)
+  obj = Hash.new
+  IDS_SIMPLE.each do |id_name|
+    obj = simple(id_name,body, obj)     
+  end 
+  obj = salesArg(body, obj)
+  obj = pdfs(body, obj)
+  obj = images(body, obj)
+  obj = price1(body, obj)
+  obj = storeformatpieces(body, obj)
+  obj = related(body, obj)
+  obj = numberOfPackages(body, obj)
+  obj = packageInfo(body, obj)
+  obj = packageInfo(body, obj)
+  obj = breadCrumbs(body, obj)
+  obj = links(body,obj)
+  return obj
+end
+
+def simple(id, body, obj)
+  result = body.scan(/<div id\s*="#{id}".*?>(.*?)<\/div>/m)
+  if result.any?
+    obj[id] = result[0][0].gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+  else 
+    obj[id] = ''
+  end
+  return obj
+end
+
+def salesArg(body, obj)
+  result = body.scan(/<div id="salesArg".*?>(.*?)<a/m)
+  if result.any?
+    obj["salesArg"] = result[0][0].gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+  else 
+    obj["salesArg"] = ''
+  end
+  return obj
+end
+
+def pdfs(body, obj)
+  result = body.scan(/<div class="colAttachment">\s+<a href="(.*?)" target="_blank"/m)
+  if result.any?   
+    result.each do |element|
+      element = element[0].force_encoding('UTF-8')
+    end
+    obj["pdfs"] = result
+  else 
+    obj["pdfs"] = ''
+  end
+  return obj
+end
+
+def images(body, obj)
+  result = body.scan(/"images":{"large":\[(.*?)\]/m)
+  if result.any?
+    result[0][0].split(/","/).each do |elemenet|
+      result.push(elemenet.to_s.gsub(/\t|\n|\r|"|\\/, "").force_encoding('UTF-8'))
+    end
+    obj["images"] = result
+  else 
+    obj["images"] = ''
+  end
+  return obj
+end
+
+
+def price1(body, obj)
+  result = body.scan(/<span id="price1".*?>(.*?)\./m)
+  if result.any?
+    obj["price1"] = result[0][0].gsub(/\D/, "").force_encoding('UTF-8')
+  else 
+    obj["price1"] = ''
+  end
+  return obj
+end
+
+def storeformatpieces(body, obj)
+  result = body.scan(/<span id="storeformatpieces".*?>(.*?)<\/span>/m)
+  if result.any?
+    obj["storeformatpieces"] = result[0][0].gsub(/\D/, "").force_encoding('UTF-8')
+  else 
+    obj["storeformatpieces"] = ''
+  end
+  return obj
+end
+
+def related(body, obj)
+  result = body.scan(/MAY_BE_COMPLETED_WITH":\[(.*?)\]/m)
+  if result.any?
+    obj["related"] = result[0][0].gsub(/"/, "").force_encoding('UTF-8')
+  else 
+    obj["related"] = ''
+  end
+  return obj
+end
+
+def numberOfPackages(body, obj)
+  result = body.scan(/<span id="numberOfPackages">(.*?)<\/span>/m)
+  if result.any?
+    obj["numberOfPackages"] = result[0][0].gsub(/\D/, "").force_encoding('UTF-8')
+  else 
+    obj["numberOfPackages"] = ''
+  end
+  return obj
+end
+
+def packageInfo(body, obj)
+  result = body.scan(/<span id="numberOfPackages">.*?<\/span>.*? class="texts".*?>(.*?)<\/div>/m)
+  if result.any?
+    obj["packageInfo"] = result[0][0].gsub(/\t|\n|\r/, "").force_encoding('UTF-8')
+  else 
+    obj["packageInfo"] = ''
+  end
+  return obj
+end
+
+def breadCrumbs(body, obj)
+  result = body.scan(/<ul id="breadCrumbs">(.*?)<\/ul>/m)
+  if result.any?
+    tmp = result[0][0].scan(/href="\/ru\/ru\/catalog\/categories\/departments\/(.*?)\/".?>(.*?)<\/a>/m)
+    i = 0 
+    tmp.each do |el|
+      i += 1
+      el[1] = el[1].force_encoding('UTF-8')
+      obj["breadCrumbs#{i}"] = el
+    end
+  end
+  return obj
+end
+
+def find_last_suitable(value, body)
+  tmp = body.scan(/"partNumber"(.*?"catEntryId":"#{value}")/)
+  if tmp.any?
+    return find_last_suitable(value, tmp[0][0])
+  else 
+    return body
+  end
+end
+
+def links(body, obj)
+  result = body.scan(/<div id="subDivDropDown(\d)".*?>(.*?)<\/select>/m)
+  if !result.any?
+    return obj
+  end
+  i = 0 
+  result.each do |element|
+    links = Hash.new
+    array_of_atr = []
+    tmp = body.scan(/<label id="subDivDropDownLbl#{element[0]}.*?for="drop(.*?)"/m)
+    if tmp.any? and element.any?
+      options = element[1].scan(/<option value="(.*?)"/m)
+      options.each do |option|
+        option_name = element[1].scan(/<option value="#{option[0]}".*?>(.*?)<\/option>/m)
+        if option_name.any?
+          option_name = option_name[0][0].gsub(/\t|\n|\r/, "").force_encoding('UTF-8')  
+        else
+          option_name = ''
+        end
+        option[0].split(/;/).each do |value|
+          link = Hash.new
+          id = find_last_suitable(value, body).scan(/:"(.*?)","attachments"/)
+          if id.any? 
+            link["#{tmp[0][0].force_encoding('UTF-8')}"] = option_name 
+            links["#{id[0][0]}"] = link
+          end 
+        end
+      end
+      i += 1
+      obj["links#{i}"] = links
+    end
+  end
+  return obj
+end
+
 
 def create_folder(link)
   category = link.scan(/departments\/(.*?)\//).pop.pop
@@ -16,46 +195,38 @@ def create_folder(link)
   return category, sub_category
 end
 
-def create_product_description(body)
-  obj = Hash.new
-  obj['name'] = body.scan(/<div id="name".+?>(.+?)<\/div>/m).pop.pop.gsub(/\s+/, "")
-  #obj['type'] = page_category.body.scan(/some regex/)
-  #obj['price1'] = page_category.body.scan(/some regex/)
-  #obj['itemNumber'] = page_category.body.scan(/some regex/)
-  #obj['salesArg'] = page_category.body.scan(/some regex/)
-  #obj['displayMeasurements'] = page_category.body.scan(/some regex/)
-  #obj['ikeaStoreNumber1'] = page_category.body.scan(/some regex/)
-  #obj['metric'] = page_category.body.scan(/some regex/)
-  #obj['imperial'] = page_category.body.scan(/some regex/)
-  #obj['custBenefit'] = page_category.body.scan(/some regex/)
-  #obj['packageHeader'] = page_category.body.scan(/some regex/)
-  #obj['goodtoknowheader1'] = page_category.body.scan(/some regex/)
-  #obj['measurmentHead'] = page_category.body.scan(/some regex/)
-  #obj['imgs'] = page_category.body.scan(/some regex/)
-  return obj.to_json
-end
-
 a = Mechanize.new { |agent|
   agent.user_agent_alias = 'Mac Safari'
 }
 
-i=0
+can_not_fecth = Array.new
 a.get('http://www.ikea.com/ru/ru/catalog/allproducts/') do |page_home|
   page_home.body.scan(/<a id="txt\d+" href="(.*)"/) do |category_link| 
-    i+=1
-    break if i>1
     category_link = category_link.pop
     category, sub_category = create_folder(category_link)
-    a.get('http://www.ikea.com'+category_link) do |page_category| 
-      page_category.body.scan(/<a href="\/ru\/ru\/catalog\/products\/(\d+)\/"/).uniq do |product| 
-        product = product.pop
-        a.get('http://www.ikea.com/ru/ru/catalog/products/'+product) do |page_product|  
-          i+=1
-          break if i>3       
-          product_json = create_product_description(page_product.body)        
-          File.open("#{category}/#{sub_category}/#{product}", 'w') { |f| f.write(product_json) }
-        end    
-      end 
-    end
+    begin
+      a.get('http://www.ikea.com'+category_link) do |page_category| 
+        page_category.body.scan(/<a href="\/ru\/ru\/catalog\/products\/(\d+)\/"/).uniq do |product| 
+          product = product.pop
+          if `ls #{category}/#{sub_category}/#{product}`.empty? 
+            p product
+            begin
+              a.get('http://www.ikea.com/ru/ru/catalog/products/'+product) do |page_product|  
+                product_json = create_product_description(page_product.body)        
+                File.open("#{category}/#{sub_category}/#{product}", 'w') { |f| f.write(product_json) }
+              end
+            rescue Exception
+              can_not_fecth.push("#{category}/#{sub_category}/#{product}")
+            end    
+          end
+        end
+      end
+    rescue Exception
+      can_not_fecth.push("#{category}/#{sub_category}")
+    end    
   end 
 end
+p can_not_fecth
+File.open("problems.js", 'w') { |f| f.write(can_not_fecth.to_json) }
+
+
